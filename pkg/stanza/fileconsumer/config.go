@@ -58,11 +58,12 @@ func NewConfig() *Config {
 		PollInterval:       defaultPollInterval,
 		MaxConcurrentFiles: defaultMaxConcurrentFiles,
 		StartAt:            "end",
-		FingerprintSize:    fingerprint.DefaultSize,
-		InitialBufferSize:  scanner.DefaultBufferSize,
-		MaxLogSize:         reader.DefaultMaxLogSize,
-		Encoding:           defaultEncoding,
-		FlushPeriod:        reader.DefaultFlushPeriod,
+		FingerprintSize:          fingerprint.DefaultSize,
+		FingerprintDeduplication: true,
+		InitialBufferSize:        scanner.DefaultBufferSize,
+		MaxLogSize:               reader.DefaultMaxLogSize,
+		Encoding:                 defaultEncoding,
+		FlushPeriod:              reader.DefaultFlushPeriod,
 		Resolver: attrs.Resolver{
 			IncludeFileName: true,
 		},
@@ -77,20 +78,21 @@ type Config struct {
 	MaxConcurrentFiles      int             `mapstructure:"max_concurrent_files,omitempty"`
 	MaxBatches              int             `mapstructure:"max_batches,omitempty"`
 	StartAt                 string          `mapstructure:"start_at,omitempty"`
-	FingerprintSize         helper.ByteSize `mapstructure:"fingerprint_size,omitempty"`
-	InitialBufferSize       helper.ByteSize `mapstructure:"initial_buffer_size,omitempty"`
-	MaxLogSize              helper.ByteSize `mapstructure:"max_log_size,omitempty"`
-	Encoding                string          `mapstructure:"encoding,omitempty"`
-	SplitConfig             split.Config    `mapstructure:"multiline,omitempty"`
-	TrimConfig              trim.Config     `mapstructure:",squash,omitempty"`
-	FlushPeriod             time.Duration   `mapstructure:"force_flush_period,omitempty"`
-	Header                  *HeaderConfig   `mapstructure:"header,omitempty"`
-	DeleteAfterRead         bool            `mapstructure:"delete_after_read,omitempty"`
-	IncludeFileRecordNumber bool            `mapstructure:"include_file_record_number,omitempty"`
-	IncludeFileRecordOffset bool            `mapstructure:"include_file_record_offset,omitempty"`
-	Compression             string          `mapstructure:"compression,omitempty"`
-	PollsToArchive          int             `mapstructure:"polls_to_archive,omitempty"`
-	AcquireFSLock           bool            `mapstructure:"acquire_fs_lock,omitempty"`
+	FingerprintSize          helper.ByteSize `mapstructure:"fingerprint_size,omitempty"`
+	FingerprintDeduplication bool            `mapstructure:"fingerprint_deduplication,omitempty"`
+	InitialBufferSize        helper.ByteSize `mapstructure:"initial_buffer_size,omitempty"`
+	MaxLogSize               helper.ByteSize `mapstructure:"max_log_size,omitempty"`
+	Encoding                 string          `mapstructure:"encoding,omitempty"`
+	SplitConfig              split.Config    `mapstructure:"multiline,omitempty"`
+	TrimConfig               trim.Config     `mapstructure:",squash,omitempty"`
+	FlushPeriod              time.Duration   `mapstructure:"force_flush_period,omitempty"`
+	Header                   *HeaderConfig   `mapstructure:"header,omitempty"`
+	DeleteAfterRead          bool            `mapstructure:"delete_after_read,omitempty"`
+	IncludeFileRecordNumber  bool            `mapstructure:"include_file_record_number,omitempty"`
+	IncludeFileRecordOffset  bool            `mapstructure:"include_file_record_offset,omitempty"`
+	Compression              string          `mapstructure:"compression,omitempty"`
+	PollsToArchive           int             `mapstructure:"polls_to_archive,omitempty"`
+	AcquireFSLock            bool            `mapstructure:"acquire_fs_lock,omitempty"`
 }
 
 type HeaderConfig struct {
@@ -183,15 +185,16 @@ func (c Config) Build(set component.TelemetrySettings, emit emit.Callback, opts 
 	}
 
 	return &Manager{
-		set:              set,
-		readerFactory:    readerFactory,
-		fileMatcher:      fileMatcher,
-		pollInterval:     c.PollInterval,
-		maxBatchFiles:    maxBatchFiles,
-		maxBatches:       c.MaxBatches,
-		telemetryBuilder: telemetryBuilder,
-		noTracking:       o.noTracking,
-		pollsToArchive:   c.PollsToArchive,
+		set:                     set,
+		readerFactory:           readerFactory,
+		fileMatcher:             fileMatcher,
+		pollInterval:            c.PollInterval,
+		maxBatchFiles:           maxBatchFiles,
+		maxBatches:              c.MaxBatches,
+		telemetryBuilder:        telemetryBuilder,
+		noTracking:              o.noTracking,
+		fingerprintDeduplication: c.FingerprintDeduplication,
+		pollsToArchive:          c.PollsToArchive,
 	}, nil
 }
 

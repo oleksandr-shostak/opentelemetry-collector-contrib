@@ -25,6 +25,10 @@ If logs are replicated to multiple files, or if log files are copied manually, i
 
 In some rare circumstances, a logger may print a very verbose preamble to each log file. When this occurs, fingerprinting may fail to differentiate files from one another. This can be overcome by customizing the size of the fingerprint using the `fingerprint_size` setting.
 
+If you need to ingest multiple files that share the same fingerprint, set `fingerprint_deduplication` to `false`.
+This disables fingerprint-based deduplication and can lead to duplicate ingestion or incorrect offset tracking
+when files with identical fingerprints appear or disappear.
+
 # Readers
 
 Readers are a convenience struct, which exist for the purpose of managing files and their associated metadata. 

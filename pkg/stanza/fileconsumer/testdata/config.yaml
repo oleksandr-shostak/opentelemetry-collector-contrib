@@ -94,6 +94,9 @@ fingerprint_size_float:
 fingerprint_size_no_units:
   type: mock
   fingerprint_size: 1000
+fingerprint_deduplication_false:
+  type: mock
+  fingerprint_deduplication: false
 include_glob:
   type: mock
   include:

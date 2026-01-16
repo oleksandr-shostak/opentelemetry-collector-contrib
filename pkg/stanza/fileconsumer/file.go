@@ -27,10 +27,11 @@ type Manager struct {
 	wg     sync.WaitGroup
 	cancel context.CancelFunc
 
-	readerFactory *reader.Factory
-	fileMatcher   *matcher.Matcher
-	tracker       tracker.Tracker
-	noTracking    bool
+	readerFactory            *reader.Factory
+	fileMatcher              *matcher.Matcher
+	tracker                  tracker.Tracker
+	noTracking               bool
+	fingerprintDeduplication bool
 
 	pollInterval   time.Duration
 	persister      operator.Persister
@@ -207,7 +208,7 @@ func (m *Manager) makeFingerprint(path string) (*fingerprint.Fingerprint, *os.Fi
 
 // makeReader take a file path, then creates reader,
 // discarding any that have a duplicate fingerprint to other files that have already
-// been read this polling interval
+// been read this polling interval when fingerprint deduplication is enabled.
 func (m *Manager) makeReaders(ctx context.Context, paths []string) {
 	for _, path := range paths {
 		fp, file := m.makeFingerprint(path)
@@ -217,14 +218,16 @@ func (m *Manager) makeReaders(ctx context.Context, paths []string) {
 
 		// Exclude duplicate paths with the same content. This can happen when files are
 		// being rotated with copy/truncate strategy. (After copy, prior to truncate.)
-		if r := m.tracker.GetCurrentFile(fp); r != nil {
-			m.set.Logger.Debug("Skipping duplicate file", zap.String("path", file.Name()))
-			// re-add the reader as Match() removes duplicates
-			m.tracker.Add(r)
-			if err := file.Close(); err != nil {
-				m.set.Logger.Debug("problem closing file", zap.Error(err))
+		if m.fingerprintDeduplication {
+			if r := m.tracker.GetCurrentFile(fp); r != nil {
+				m.set.Logger.Debug("Skipping duplicate file", zap.String("path", file.Name()))
+				// re-add the reader as Match() removes duplicates
+				m.tracker.Add(r)
+				if err := file.Close(); err != nil {
+					m.set.Logger.Debug("problem closing file", zap.Error(err))
+				}
+				continue
 			}
-			continue
 		}
 
 		r, err := m.newReader(ctx, file, fp)
@@ -316,7 +319,7 @@ func (m *Manager) instantiateTracker(ctx context.Context, persister operator.Per
 	if m.noTracking {
 		t = tracker.NewNoStateTracker(m.set, m.maxBatchFiles)
 	} else {
-		t = tracker.NewFileTracker(ctx, m.set, m.maxBatchFiles, m.pollsToArchive, persister)
+		t = tracker.NewFileTracker(ctx, m.set, m.maxBatchFiles, m.pollsToArchive, persister, m.fingerprintDeduplication)
 	}
 	m.tracker = t
 }

@@ -35,6 +35,10 @@ In some rare circumstances, a logger may print a very verbose preamble to each l
 fingerprinting may fail to differentiate files from one another. This can be overcome by customizing the size
 of the fingerprint using the `fingerprint_size` setting.
 
+If you need to ingest multiple files that share the same fingerprint, set `fingerprint_deduplication` to `false`.
+This disables fingerprint-based deduplication and can lead to duplicate ingestion or incorrect offset tracking
+when files with identical fingerprints appear or disappear.
+
 ### Log line ordering across file rotations
 
 In general, we offer no guarantees as to the relative ordering of log lines originating from different files.

@@ -47,6 +47,7 @@ type fileTracker struct {
 	set component.TelemetrySettings
 
 	maxBatchFiles int
+	deduplicateFingerprints bool
 
 	currentPollFiles  *fileset.Fileset[*reader.Reader]
 	previousPollFiles *fileset.Fileset[*reader.Reader]
@@ -58,7 +59,7 @@ type fileTracker struct {
 	archive archive.Archive
 }
 
-func NewFileTracker(ctx context.Context, set component.TelemetrySettings, maxBatchFiles, pollsToArchive int, persister operator.Persister) Tracker {
+func NewFileTracker(ctx context.Context, set component.TelemetrySettings, maxBatchFiles, pollsToArchive int, persister operator.Persister, deduplicateFingerprints bool) Tracker {
 	knownFiles := make([]*fileset.Fileset[*reader.Metadata], 3)
 	for i := range knownFiles {
 		knownFiles[i] = fileset.New[*reader.Metadata](maxBatchFiles)
@@ -66,12 +67,13 @@ func NewFileTracker(ctx context.Context, set component.TelemetrySettings, maxBat
 	set.Logger = set.Logger.With(zap.String("tracker", "fileTracker"))
 
 	t := &fileTracker{
-		set:               set,
-		maxBatchFiles:     maxBatchFiles,
-		currentPollFiles:  fileset.New[*reader.Reader](maxBatchFiles),
-		previousPollFiles: fileset.New[*reader.Reader](maxBatchFiles),
-		knownFiles:        knownFiles,
-		archive:           archive.New(ctx, set.Logger.Named("archive"), pollsToArchive, persister),
+		set:                     set,
+		maxBatchFiles:           maxBatchFiles,
+		deduplicateFingerprints: deduplicateFingerprints,
+		currentPollFiles:        fileset.New[*reader.Reader](maxBatchFiles),
+		previousPollFiles:       fileset.New[*reader.Reader](maxBatchFiles),
+		knownFiles:              knownFiles,
+		archive:                 archive.New(ctx, set.Logger.Named("archive"), pollsToArchive, persister),
 	}
 	return t
 }
@@ -104,7 +106,7 @@ func (t *fileTracker) GetClosedFile(fp *fingerprint.Fingerprint) *reader.Metadat
 
 func (t *fileTracker) AddUnmatched(file *os.File, fp *fingerprint.Fingerprint) {
 	// exclude duplicate fingerprints
-	if slices.ContainsFunc(t.unmatchedFps, fp.Equal) {
+	if t.deduplicateFingerprints && slices.ContainsFunc(t.unmatchedFps, fp.Equal) {
 		t.set.Logger.Debug("Skipping duplicate file", zap.String("path", file.Name()))
 		return
 	}
