@@ -55,11 +55,12 @@ var AllowHeaderMetadataParsing = featuregate.GlobalRegistry().MustRegister(
 // NewConfig creates a new input config with default values
 func NewConfig() *Config {
 	return &Config{
-		PollInterval:       defaultPollInterval,
-		MaxConcurrentFiles: defaultMaxConcurrentFiles,
-		StartAt:            "end",
+		PollInterval:             defaultPollInterval,
+		MaxConcurrentFiles:       defaultMaxConcurrentFiles,
+		StartAt:                  "end",
 		FingerprintSize:          fingerprint.DefaultSize,
 		FingerprintDeduplication: true,
+		FingerprintIncludePath:   false,
 		InitialBufferSize:        scanner.DefaultBufferSize,
 		MaxLogSize:               reader.DefaultMaxLogSize,
 		Encoding:                 defaultEncoding,
@@ -72,14 +73,15 @@ func NewConfig() *Config {
 
 // Config is the configuration of a file input operator
 type Config struct {
-	matcher.Criteria        `mapstructure:",squash"`
-	attrs.Resolver          `mapstructure:",squash"`
-	PollInterval            time.Duration   `mapstructure:"poll_interval,omitempty"`
-	MaxConcurrentFiles      int             `mapstructure:"max_concurrent_files,omitempty"`
-	MaxBatches              int             `mapstructure:"max_batches,omitempty"`
-	StartAt                 string          `mapstructure:"start_at,omitempty"`
+	matcher.Criteria         `mapstructure:",squash"`
+	attrs.Resolver           `mapstructure:",squash"`
+	PollInterval             time.Duration   `mapstructure:"poll_interval,omitempty"`
+	MaxConcurrentFiles       int             `mapstructure:"max_concurrent_files,omitempty"`
+	MaxBatches               int             `mapstructure:"max_batches,omitempty"`
+	StartAt                  string          `mapstructure:"start_at,omitempty"`
 	FingerprintSize          helper.ByteSize `mapstructure:"fingerprint_size,omitempty"`
 	FingerprintDeduplication bool            `mapstructure:"fingerprint_deduplication,omitempty"`
+	FingerprintIncludePath   bool            `mapstructure:"fingerprint_include_path,omitempty"`
 	InitialBufferSize        helper.ByteSize `mapstructure:"initial_buffer_size,omitempty"`
 	MaxLogSize               helper.ByteSize `mapstructure:"max_log_size,omitempty"`
 	Encoding                 string          `mapstructure:"encoding,omitempty"`
@@ -159,6 +161,7 @@ func (c Config) Build(set component.TelemetrySettings, emit emit.Callback, opts 
 		TelemetrySettings:       set,
 		FromBeginning:           startAtBeginning,
 		FingerprintSize:         int(c.FingerprintSize),
+		FingerprintIncludePath:  c.FingerprintIncludePath,
 		InitialBufferSize:       int(c.InitialBufferSize),
 		MaxLogSize:              int(c.MaxLogSize),
 		Encoding:                enc,
@@ -185,16 +188,16 @@ func (c Config) Build(set component.TelemetrySettings, emit emit.Callback, opts 
 	}
 
 	return &Manager{
-		set:                     set,
-		readerFactory:           readerFactory,
-		fileMatcher:             fileMatcher,
-		pollInterval:            c.PollInterval,
-		maxBatchFiles:           maxBatchFiles,
-		maxBatches:              c.MaxBatches,
-		telemetryBuilder:        telemetryBuilder,
-		noTracking:              o.noTracking,
+		set:                      set,
+		readerFactory:            readerFactory,
+		fileMatcher:              fileMatcher,
+		pollInterval:             c.PollInterval,
+		maxBatchFiles:            maxBatchFiles,
+		maxBatches:               c.MaxBatches,
+		telemetryBuilder:         telemetryBuilder,
+		noTracking:               o.noTracking,
 		fingerprintDeduplication: c.FingerprintDeduplication,
-		pollsToArchive:          c.PollsToArchive,
+		pollsToArchive:           c.PollsToArchive,
 	}, nil
 }
 

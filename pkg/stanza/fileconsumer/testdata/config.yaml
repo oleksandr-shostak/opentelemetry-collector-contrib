@@ -97,6 +97,9 @@ fingerprint_size_no_units:
 fingerprint_deduplication_false:
   type: mock
   fingerprint_deduplication: false
+fingerprint_include_path_true:
+  type: mock
+  fingerprint_include_path: true
 include_glob:
   type: mock
   include:

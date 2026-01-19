@@ -31,6 +31,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal(t, "end", cfg.StartAt)
 	assert.Equal(t, fingerprint.DefaultSize, int(cfg.FingerprintSize))
 	assert.True(t, cfg.FingerprintDeduplication)
+	assert.False(t, cfg.FingerprintIncludePath)
 	assert.Equal(t, defaultEncoding, cfg.Encoding)
 	assert.Equal(t, reader.DefaultMaxLogSize, int(cfg.MaxLogSize))
 	assert.Equal(t, reader.DefaultFlushPeriod, cfg.FlushPeriod)
@@ -322,6 +323,14 @@ func TestUnmarshal(t *testing.T) {
 				Expect: func() *mockOperatorConfig {
 					cfg := NewConfig()
 					cfg.FingerprintDeduplication = false
+					return newMockOperatorConfig(cfg)
+				}(),
+			},
+			{
+				Name: "fingerprint_include_path_true",
+				Expect: func() *mockOperatorConfig {
+					cfg := NewConfig()
+					cfg.FingerprintIncludePath = true
 					return newMockOperatorConfig(cfg)
 				}(),
 			},

@@ -37,6 +37,7 @@ type Factory struct {
 	HeaderConfig            *header.Config
 	FromBeginning           bool
 	FingerprintSize         int
+	FingerprintIncludePath  bool
 	BufPool                 sync.Pool
 	InitialBufferSize       int
 	MaxLogSize              int
@@ -54,7 +55,14 @@ type Factory struct {
 }
 
 func (f *Factory) NewFingerprint(file *os.File) (*fingerprint.Fingerprint, error) {
-	return fingerprint.NewFromFile(file, f.FingerprintSize, f.Compression != "", f.Logger)
+	fp, err := fingerprint.NewFromFile(file, f.FingerprintSize, f.Compression != "", f.Logger)
+	if err != nil {
+		return nil, err
+	}
+	if f.FingerprintIncludePath {
+		return fingerprint.WithPathPrefix(fp, file.Name()), nil
+	}
+	return fp, nil
 }
 
 func (f *Factory) NewReader(file *os.File, fp *fingerprint.Fingerprint) (*Reader, error) {
@@ -82,26 +90,30 @@ func (f *Factory) NewReader(file *os.File, fp *fingerprint.Fingerprint) (*Reader
 
 func (f *Factory) NewReaderFromMetadata(file *os.File, m *Metadata) (r *Reader, err error) {
 	r = &Reader{
-		Metadata:          m,
-		set:               f.TelemetrySettings,
-		file:              file,
-		fileName:          file.Name(),
-		fingerprintSize:   f.FingerprintSize,
-		bufPool:           &f.BufPool,
-		initialBufferSize: f.InitialBufferSize,
-		maxLogSize:        f.MaxLogSize,
-		decoder:           f.Encoding.NewDecoder(),
-		deleteAtEOF:       f.DeleteAtEOF,
-		compression:       f.Compression,
-		acquireFSLock:     f.AcquireFSLock,
-		maxBatchSize:      DefaultMaxBatchSize,
-		emitFunc:          f.EmitFunc,
+		Metadata:               m,
+		set:                    f.TelemetrySettings,
+		file:                   file,
+		fileName:               file.Name(),
+		fingerprintSize:        f.FingerprintSize,
+		fingerprintIncludePath: f.FingerprintIncludePath,
+		bufPool:                &f.BufPool,
+		initialBufferSize:      f.InitialBufferSize,
+		maxLogSize:             f.MaxLogSize,
+		decoder:                f.Encoding.NewDecoder(),
+		deleteAtEOF:            f.DeleteAtEOF,
+		compression:            f.Compression,
+		acquireFSLock:          f.AcquireFSLock,
+		maxBatchSize:           DefaultMaxBatchSize,
+		emitFunc:               f.EmitFunc,
 	}
 	r.set.Logger = r.set.Logger.With(zap.String("path", r.fileName))
+	if r.fingerprintIncludePath {
+		r.fingerprintPrefixLen = len(r.fileName)
+	}
 
-	if r.Fingerprint.Len() > r.fingerprintSize {
+	if r.fingerprintFileLen() > r.fingerprintSize {
 		// User has reconfigured fingerprint_size
-		shorter, rereadErr := fingerprint.NewFromFile(file, r.fingerprintSize, r.compression != "", r.set.Logger)
+		shorter, rereadErr := r.refreshFingerprint()
 		if rereadErr != nil {
 			return nil, fmt.Errorf("reread fingerprint: %w", rereadErr)
 		}

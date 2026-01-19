@@ -71,6 +71,21 @@ func NewFromFile(file *os.File, size int, decompressData bool, logger *zap.Logge
 	return New(buf[:n]), nil
 }
 
+// WithPathPrefix returns a new fingerprint prefixed with the file path bytes.
+func WithPathPrefix(fp *Fingerprint, path string) *Fingerprint {
+	if fp == nil {
+		return nil
+	}
+	if path == "" {
+		return fp.Copy()
+	}
+	prefix := []byte(path)
+	combined := make([]byte, len(prefix)+len(fp.firstBytes))
+	copy(combined, prefix)
+	copy(combined[len(prefix):], fp.firstBytes)
+	return New(combined)
+}
+
 // Copy creates a new copy of the fingerprint
 func (f Fingerprint) Copy() *Fingerprint {
 	buf := make([]byte, len(f.firstBytes), cap(f.firstBytes))

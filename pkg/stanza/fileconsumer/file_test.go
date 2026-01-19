@@ -1408,6 +1408,34 @@ func TestFingerprintDeduplicationDisabled(t *testing.T) {
 	operator.wg.Wait()
 }
 
+func TestFingerprintIncludePath(t *testing.T) {
+	t.Parallel()
+	tempDir := t.TempDir()
+	cfg := NewConfig().includeDir(tempDir)
+	cfg.FingerprintSize = 18
+	cfg.FingerprintIncludePath = true
+	cfg.StartAt = "beginning"
+	operator, sink := testManager(t, cfg)
+	operator.persister = testutil.NewUnscopedMockPersister()
+
+	file1 := filetest.OpenTempWithPattern(t, tempDir, "*.log1")
+	file2 := filetest.OpenTempWithPattern(t, tempDir, "*.log2")
+
+	content := "aaaaaaaaaaa"
+	filetest.WriteString(t, file1, content+"\n")
+	filetest.WriteString(t, file2, content+"\n")
+
+	operator.poll(t.Context())
+
+	token1, attrs1 := sink.NextCall(t)
+	token2, attrs2 := sink.NextCall(t)
+	require.Equal(t, []byte(content), token1)
+	require.Equal(t, []byte(content), token2)
+	require.NotEqual(t, attrs1[attrs.LogFileName], attrs2[attrs.LogFileName])
+	sink.ExpectNoCalls(t)
+	operator.wg.Wait()
+}
+
 func TestWindowsFilesClosedImmediately(t *testing.T) {
 	t.Parallel()
 

@@ -197,7 +197,14 @@ func (m *Manager) makeFingerprint(path string) (*fingerprint.Fingerprint, *os.Fi
 		return nil, nil
 	}
 
-	if fp.Len() == 0 {
+	fpLen := fp.Len()
+	if m.readerFactory.FingerprintIncludePath {
+		fpLen -= len(file.Name())
+		if fpLen < 0 {
+			fpLen = 0
+		}
+	}
+	if fpLen == 0 {
 		fields := []zap.Field{zap.String("path", file.Name())}
 		if info, statErr := file.Stat(); statErr != nil {
 			fields = append(fields, zap.Error(statErr))

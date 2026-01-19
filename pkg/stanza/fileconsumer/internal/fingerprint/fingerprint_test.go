@@ -62,6 +62,13 @@ func TestNew(t *testing.T) {
 	require.Equal(t, []byte("hello"), fp.firstBytes)
 }
 
+func TestWithPathPrefix(t *testing.T) {
+	fp := New([]byte("data"))
+	prefixed := WithPathPrefix(fp, "/var/log/app.log")
+	require.Equal(t, []byte("/var/log/app.logdata"), prefixed.firstBytes)
+	require.Equal(t, []byte("data"), fp.firstBytes)
+}
+
 func TestNewFromFile(t *testing.T) {
 	cases := []struct {
 		name            string

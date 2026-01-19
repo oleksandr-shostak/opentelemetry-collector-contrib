@@ -11,6 +11,8 @@ The effective search space (`include - exclude`) is referred to colloquially as 
 
 Files are identified and tracked using fingerprints. A fingerprint is the first `N` bytes of the file,
 with the default for `N` being `1000`. 
+If `fingerprint_include_path` is enabled, the fingerprint is the file path bytes followed by the first `N` bytes
+of the file; the path prefix does not count toward the `N`-byte limit.
 
 ### Fingerprint Growth
 
@@ -38,6 +40,10 @@ of the fingerprint using the `fingerprint_size` setting.
 If you need to ingest multiple files that share the same fingerprint, set `fingerprint_deduplication` to `false`.
 This disables fingerprint-based deduplication and can lead to duplicate ingestion or incorrect offset tracking
 when files with identical fingerprints appear or disappear.
+
+You can also set `fingerprint_include_path` to `true` to include the file path in the fingerprint. This keeps
+files with identical leading bytes from colliding, but it also treats copies or renames as distinct files and
+can lead to duplicate ingestion across paths.
 
 ### Log line ordering across file rotations
 

@@ -46,6 +46,8 @@ type Reader struct {
 	file                   *os.File
 	reader                 io.Reader
 	fingerprintSize        int
+	fingerprintIncludePath bool
+	fingerprintPrefixLen   int
 	bufPool                *sync.Pool
 	initialBufferSize      int
 	maxLogSize             int
@@ -308,7 +310,7 @@ func (r *Reader) Read(dst []byte) (n int, err error) {
 		return n, err
 	}
 
-	if !r.needsUpdateFingerprint && r.Fingerprint.Len() < r.fingerprintSize {
+	if !r.needsUpdateFingerprint && r.fingerprintFileLen() < r.fingerprintSize {
 		r.needsUpdateFingerprint = true
 	}
 	return n, err
@@ -323,7 +325,7 @@ func (r *Reader) Validate() bool {
 	if r.file == nil {
 		return false
 	}
-	refreshedFingerprint, err := fingerprint.NewFromFile(r.file, r.fingerprintSize, r.compression != "", r.set.Logger)
+	refreshedFingerprint, err := r.refreshFingerprint()
 	if err != nil {
 		return false
 	}
@@ -346,7 +348,7 @@ func (r *Reader) updateFingerprint() {
 	if r.file == nil {
 		return
 	}
-	refreshedFingerprint, err := fingerprint.NewFromFile(r.file, r.fingerprintSize, r.compression != "", r.set.Logger)
+	refreshedFingerprint, err := r.refreshFingerprint()
 	if err != nil {
 		return
 	}
@@ -354,6 +356,30 @@ func (r *Reader) updateFingerprint() {
 		return // fingerprint tampered, likely due to truncation
 	}
 	r.Fingerprint = refreshedFingerprint
+}
+
+func (r *Reader) fingerprintFileLen() int {
+	if r.Fingerprint == nil {
+		return 0
+	}
+	if !r.fingerprintIncludePath {
+		return r.Fingerprint.Len()
+	}
+	if r.fingerprintPrefixLen >= r.Fingerprint.Len() {
+		return 0
+	}
+	return r.Fingerprint.Len() - r.fingerprintPrefixLen
+}
+
+func (r *Reader) refreshFingerprint() (*fingerprint.Fingerprint, error) {
+	fp, err := fingerprint.NewFromFile(r.file, r.fingerprintSize, r.compression != "", r.set.Logger)
+	if err != nil {
+		return nil, err
+	}
+	if r.fingerprintIncludePath {
+		return fingerprint.WithPathPrefix(fp, r.fileName), nil
+	}
+	return fp, nil
 }
 
 func (r *Reader) getBufPtrFromPool() *[]byte {
