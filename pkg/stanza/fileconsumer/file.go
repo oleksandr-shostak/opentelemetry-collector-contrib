@@ -190,6 +190,7 @@ func (m *Manager) makeFingerprint(path string) (*fingerprint.Fingerprint, *os.Fi
 
 	fp, err := m.readerFactory.NewFingerprint(file)
 	if err != nil {
+		m.set.Logger.Info("Skipping file: fingerprint error", zap.String("path", file.Name()), zap.Error(err))
 		if err = file.Close(); err != nil {
 			m.set.Logger.Debug("problem closing file", zap.Error(err))
 		}
@@ -197,6 +198,13 @@ func (m *Manager) makeFingerprint(path string) (*fingerprint.Fingerprint, *os.Fi
 	}
 
 	if fp.Len() == 0 {
+		fields := []zap.Field{zap.String("path", file.Name())}
+		if info, statErr := file.Stat(); statErr != nil {
+			fields = append(fields, zap.Error(statErr))
+		} else {
+			fields = append(fields, zap.Int64("file_size", info.Size()))
+		}
+		m.set.Logger.Info("Skipping file: empty fingerprint", fields...)
 		// Empty file, don't read it until we can compare its fingerprint
 		if err = file.Close(); err != nil {
 			m.set.Logger.Debug("problem closing file", zap.Error(err))
@@ -220,7 +228,7 @@ func (m *Manager) makeReaders(ctx context.Context, paths []string) {
 		// being rotated with copy/truncate strategy. (After copy, prior to truncate.)
 		if m.fingerprintDeduplication {
 			if r := m.tracker.GetCurrentFile(fp); r != nil {
-				m.set.Logger.Debug("Skipping duplicate file", zap.String("path", file.Name()))
+				m.set.Logger.Info("Skipping file: duplicate fingerprint", zap.String("path", file.Name()))
 				// re-add the reader as Match() removes duplicates
 				m.tracker.Add(r)
 				if err := file.Close(); err != nil {

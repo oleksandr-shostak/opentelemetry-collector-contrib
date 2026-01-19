@@ -107,7 +107,7 @@ func (t *fileTracker) GetClosedFile(fp *fingerprint.Fingerprint) *reader.Metadat
 func (t *fileTracker) AddUnmatched(file *os.File, fp *fingerprint.Fingerprint) {
 	// exclude duplicate fingerprints
 	if t.deduplicateFingerprints && slices.ContainsFunc(t.unmatchedFps, fp.Equal) {
-		t.set.Logger.Debug("Skipping duplicate file", zap.String("path", file.Name()))
+		t.set.Logger.Info("Skipping file: duplicate fingerprint", zap.String("path", file.Name()))
 		return
 	}
 	t.unmatchedFps = append(t.unmatchedFps, fp)
